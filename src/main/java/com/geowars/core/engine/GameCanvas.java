@@ -5,8 +5,11 @@ import com.geowars.core.util.Constants;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.util.HashSet;
+import java.util.Set;
 
 public class GameCanvas extends JFrame {
 
@@ -40,7 +43,6 @@ public class GameCanvas extends JFrame {
      * This panel draws game visuals based on game state.
      */
     class GamePanel extends JPanel {
-
         // Mouse coords
         private Point mousePos = new Point(0,0);
         private boolean showDebugOverlay = true;
@@ -50,7 +52,18 @@ public class GameCanvas extends JFrame {
         private int currentFPS = 0;
         private long lastTime = System.currentTimeMillis();
 
+        // Keys pressed
+        private final Set<Integer> pressedKeys = new HashSet<>();
+
+        // Player
+        private int playerX;
+        private int playerY;
+        private final int playerSize = 20;
+
         public GamePanel() {
+            playerX = (Constants.WINDOW_WIDTH - playerSize) / 2;
+            playerY = (Constants.WINDOW_HEIGHT - playerSize) / 2;
+
             addMouseMotionListener(new MouseMotionAdapter() {
                 @Override
                 public void mouseMoved(MouseEvent e) {
@@ -58,6 +71,31 @@ public class GameCanvas extends JFrame {
                     repaint();
                 }
             });
+
+            setFocusable(true);
+            requestFocusInWindow();
+
+            addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    pressedKeys.add(e.getKeyCode());
+                }
+
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    pressedKeys.remove(e.getKeyCode());
+                }
+            });
+
+            int speed = 3;
+            new Timer(16, e -> {
+                if (pressedKeys.contains(KeyEvent.VK_W)) playerY -= speed;
+                if (pressedKeys.contains(KeyEvent.VK_S)) playerY += speed;
+                if (pressedKeys.contains(KeyEvent.VK_A)) playerX -= speed;
+                if (pressedKeys.contains(KeyEvent.VK_D)) playerX += speed;
+
+                repaint();
+            }).start();
         }
 
         // paintComponent() lives here
@@ -72,6 +110,10 @@ public class GameCanvas extends JFrame {
                 frameCount = 0;
                 lastTime = now;
             }
+
+            // Player creation
+            g.setColor(Color.BLUE);
+            g.fillOval(playerX, playerY, playerSize, playerSize);
 
             // Mouse Coordinates
             if (showDebugOverlay) {
