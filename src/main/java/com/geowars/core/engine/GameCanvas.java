@@ -13,30 +13,34 @@ import java.util.Set;
 
 public class GameCanvas extends JFrame {
 
+    private static GamePanel gamePanel;
+
     // ------------------------------
     // Non-static Inner Classes (depend on GameCanvas instance)
     // ------------------------------
     public GameCanvas() {
         setTitle("GeoWars");
-        setSize(Constants.WINDOW_WIDTH, Constants.WINDOW_HEIGHT);
+        setSize((int)Constants.WINDOW_WIDTH, (int)Constants.WINDOW_HEIGHT);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setResizable(false);
 
         // Add the main game panel
-        GamePanel panel = new GamePanel();
-        add(panel);
+        gamePanel = new GamePanel();
+        add(gamePanel);
 
         // Set up input
-        addKeyListener(new InputHandler());
+        SwingUtilities.invokeLater(() -> {
+            gamePanel.setFocusable(true);
+            gamePanel.requestFocusInWindow();
+            gamePanel.requestFocus();
+        });
 
         // Show the window
         setVisible(true);
 
         // Start the game loop
-        Thread loop = new Thread(new GameLoop());
-        loop.start();
+        new GameLoop().start();
     }
-
 
     /**
      * Handles the main game rendering surface.
@@ -53,11 +57,11 @@ public class GameCanvas extends JFrame {
         private long lastTime = System.currentTimeMillis();
 
         // Keys pressed
-        private final Set<Integer> pressedKeys = new HashSet<>();
+        private final Set<Integer> pressedKeys = java.util.Collections.synchronizedSet(new HashSet<>());
 
         // Player
-        private int playerX;
-        private int playerY;
+        private double playerX;
+        private double playerY;
         private final int playerSize = 20;
 
         public GamePanel() {
@@ -72,9 +76,6 @@ public class GameCanvas extends JFrame {
                 }
             });
 
-            setFocusable(true);
-            requestFocusInWindow();
-
             addKeyListener(new KeyAdapter() {
                 @Override
                 public void keyPressed(KeyEvent e) {
@@ -87,15 +88,15 @@ public class GameCanvas extends JFrame {
                 }
             });
 
-            int speed = 3;
-            new Timer(16, e -> {
-                if (pressedKeys.contains(KeyEvent.VK_W)) playerY -= speed;
-                if (pressedKeys.contains(KeyEvent.VK_S)) playerY += speed;
-                if (pressedKeys.contains(KeyEvent.VK_A)) playerX -= speed;
-                if (pressedKeys.contains(KeyEvent.VK_D)) playerX += speed;
+        }
 
-                repaint();
-            }).start();
+        public void update(double delta) {
+            int speed = 200; // pixels per second
+
+            if (pressedKeys.contains(KeyEvent.VK_W)) playerY -= (speed * delta);
+            if (pressedKeys.contains(KeyEvent.VK_S)) playerY += (speed * delta);
+            if (pressedKeys.contains(KeyEvent.VK_A)) playerX -= (speed * delta);
+            if (pressedKeys.contains(KeyEvent.VK_D)) playerX += (speed * delta);
         }
 
         // paintComponent() lives here
@@ -113,7 +114,7 @@ public class GameCanvas extends JFrame {
 
             // Player creation
             g.setColor(Color.BLUE);
-            g.fillOval(playerX, playerY, playerSize, playerSize);
+            g.fillOval((int)playerX, (int)playerY, playerSize, playerSize);
 
             // Mouse Coordinates
             if (showDebugOverlay) {
@@ -148,18 +149,6 @@ public class GameCanvas extends JFrame {
     // ------------------------------
 
     /**
-     * Static inner class for managing frame timing and the game loop.
-     */
-    static class GameLoop implements Runnable {
-        // run(), update(), render()
-        @Override
-        public void run() {
-            Thread loop = new Thread(new GameLoop());
-            loop.start();
-        }
-    }
-
-    /**
      * Static inner class for maintaining game-wide state or configuration.
      */
     static class GameState {
@@ -178,5 +167,9 @@ public class GameCanvas extends JFrame {
      */
     static class UIDrawer {
         // drawHealthBar(), drawScore(), drawFPS()
+    }
+
+    public static GamePanel getGamePanel() {
+        return gamePanel;
     }
 }
