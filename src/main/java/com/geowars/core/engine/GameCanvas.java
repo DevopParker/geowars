@@ -63,6 +63,9 @@ public class GameCanvas extends JFrame {
         private double playerX;
         private double playerY;
         private final int playerSize = 20;
+        private double playerAngle = 0; // The current angle in radians
+        private double targetAngle = 0; // where we want to face
+
 
         public GamePanel() {
             playerX = (Constants.WINDOW_WIDTH - playerSize) / 2;
@@ -87,16 +90,36 @@ public class GameCanvas extends JFrame {
                     pressedKeys.remove(e.getKeyCode());
                 }
             });
-
         }
 
         public void update(double delta) {
             int speed = 200; // pixels per second
+            double dx = 0;
+            double dy = 0;
 
             if (pressedKeys.contains(KeyEvent.VK_W)) playerY -= (speed * delta);
             if (pressedKeys.contains(KeyEvent.VK_S)) playerY += (speed * delta);
             if (pressedKeys.contains(KeyEvent.VK_A)) playerX -= (speed * delta);
             if (pressedKeys.contains(KeyEvent.VK_D)) playerX += (speed * delta);
+
+            if (pressedKeys.contains(KeyEvent.VK_W)) dy -= 1;
+            if (pressedKeys.contains(KeyEvent.VK_S)) dy += 1;
+            if (pressedKeys.contains(KeyEvent.VK_A)) dx -= 1;
+            if (pressedKeys.contains(KeyEvent.VK_D)) dx += 1;
+
+            double length = Math.sqrt(dx * dx + dy * dy);
+            if (length != 0) {
+                dx /= length;
+                dy /= length;
+
+                targetAngle = Math.atan2(dy, dx); // this gives angle in radians
+                playerX += dx * speed * delta;
+                playerY += dy * speed * delta;
+            }
+
+            double angleDiff = normalizeAngle(targetAngle - playerAngle);
+            double rotationSpeed = 5.0; // radians per second
+            playerAngle += clamp(angleDiff, -rotationSpeed * delta, rotationSpeed * delta);
         }
 
         // paintComponent() lives here
@@ -114,7 +137,30 @@ public class GameCanvas extends JFrame {
 
             // Player creation
             g.setColor(Color.BLUE);
-            g.fillOval((int)playerX, (int)playerY, playerSize, playerSize);
+            Graphics2D g2d = (Graphics2D) g.create();
+
+            // Center of the player
+                    int px = (int) playerX;
+                    int py = (int) playerY;
+
+            // Size of the triangle
+                    int size = playerSize;
+
+            // Translate and rotate around center
+                    g2d.translate(px, py);
+                    g2d.rotate(playerAngle);
+
+            // Triangle points (pointing right by default)
+                    int[] xPoints = { size, -size / 2, -size / 2 };
+                    int[] yPoints = { 0, -size / 2, size / 2 };
+
+            // Draw the triangle
+                    g2d.setColor(Color.BLUE);
+                    g2d.fillPolygon(xPoints, yPoints, 3);
+
+            // Clean up
+                    g2d.dispose();
+
 
             // Mouse Coordinates
             if (showDebugOverlay) {
@@ -163,7 +209,7 @@ public class GameCanvas extends JFrame {
     }
 
     /**
-     * Static inner class for drawing reusable UI elements (health bars, etc).
+     * Static inner class for drawing reusable UI elements (health bars, etc.).
      */
     static class UIDrawer {
         // drawHealthBar(), drawScore(), drawFPS()
@@ -171,5 +217,15 @@ public class GameCanvas extends JFrame {
 
     public static GamePanel getGamePanel() {
         return gamePanel;
+    }
+
+    private double normalizeAngle(double angle) {
+        while (angle > Math.PI) angle -= 2 * Math.PI;
+        while (angle < -Math.PI) angle += 2 * Math.PI;
+        return angle;
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
