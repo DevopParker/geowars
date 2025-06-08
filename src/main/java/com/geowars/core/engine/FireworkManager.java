@@ -1,13 +1,15 @@
 package com.geowars.core.engine;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.List;
+
 
 public class FireworkManager {
-    private ArrayList<FireworkExplosion> explosions;
+    private final List<FireworkExplosion> explosions = new CopyOnWriteArrayList<>();
 
     public FireworkManager() {
-        explosions = new ArrayList<>();
+        //explosions = new ArrayList<>();
     }
 
     public void createExplosion(double x, double y, Color color, int particleCount) {

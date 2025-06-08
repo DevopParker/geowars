@@ -18,7 +18,7 @@ public class FireworkExplosion {
         for (int i = 0; i < particleCount; i++) {
             double angle = random.nextDouble() * 2 * Math.PI;
             // double speed = 100 + random.nextDouble() * 300;
-            double speed = 1 + random.nextDouble() * 500; // range: 50–1050
+            double speed = 1 + random.nextDouble() * 200; // range: 50–1050
             double dx = Math.cos(angle) * speed;
             double dy = Math.sin(angle) * speed;
 

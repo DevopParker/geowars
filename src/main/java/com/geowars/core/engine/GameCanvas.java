@@ -1,12 +1,19 @@
 package com.geowars.core.engine;
 import com.geowars.core.util.Constants;
 import javax.swing.*;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class GameCanvas extends JFrame {
@@ -52,6 +59,12 @@ public class GameCanvas extends JFrame {
         private double nextFireworkTime = FIREWORK_INTERVAL;
         private final java.util.Random random = new java.util.Random();
 
+        // GridPoint panel
+        private final int gridSpacing = 25;
+        private final java.util.List<java.util.List<GridPoint>> grid = new java.util.ArrayList<>();
+        private final java.util.List<Shockwave> shockwaves = new java.util.ArrayList<>();
+
+
         public GamePanel() {
             playerX = (Constants.WINDOW_WIDTH - playerSize) / 2;
             playerY = (Constants.WINDOW_HEIGHT - playerSize) / 2;
@@ -77,7 +90,21 @@ public class GameCanvas extends JFrame {
                     pressedKeys.remove(e.getKeyCode());
                 }
             });
+
+            initGrid();
         }
+
+        private void initGrid() {
+            grid.clear();
+            for (int y = 0; y <= Constants.WINDOW_HEIGHT; y += gridSpacing) {
+                List<GridPoint> row = new ArrayList<>();
+                for (int x = 0; x <= Constants.WINDOW_WIDTH; x += gridSpacing) {
+                    row.add(new GridPoint(x, y));
+                }
+                grid.add(row);
+            }
+        }
+
 
         public void update(double delta) {
             // Player movement code
@@ -127,6 +154,65 @@ public class GameCanvas extends JFrame {
 
             // Update existing fireworks
             fireworkManager.update(delta);
+
+            // Update shockwaves
+            for (Shockwave sw : shockwaves) {
+                sw.time += delta;
+            }
+
+            // Remove old shockwaves
+            shockwaves.removeIf(Shockwave::isExpired);
+
+            float time = (float)System.currentTimeMillis() / 1000f;
+
+            for (List<GridPoint> row : grid) {
+                for (GridPoint p : row) {
+
+                    // 🌊 Smooth, slow, wide-band base wave motion
+                    float waveSpeed = 0.4f;           // 🐢 slow global wave speed
+                    float wavelength = 150f;          // 🌊 big bands of motion
+                    float amplitude = 4f;             // subtle swaying
+
+                    float waveX = (float)Math.sin((p.y / wavelength) + (time * waveSpeed)) * amplitude;
+                    float waveY = (float)Math.sin((p.x / wavelength) + (time * waveSpeed)) * amplitude;
+
+                    float offsetX = waveX;
+                    float offsetY = waveY;
+
+                    // 💥 Firework influence: slow, soft outward pulse
+                    for (Shockwave sw : shockwaves) {
+                        float dx = p.x - sw.x;
+                        float dy = p.y - sw.y;
+                        float dist = (float)Math.sqrt(dx * dx + dy * dy);
+
+                        float angle = (float)Math.atan2(dy, dx);
+                        float fireAmplitude = 15f;
+                        float fireWavelength = 100f;
+                        float fireFrequency = 0.5f; // 👈 slow wave movement
+
+                        float phase = (dist / fireWavelength) - (sw.time * fireFrequency);
+                        float wavefront = sw.getRadius(); // sw.time * fireFrequency * fireWavelength
+                        float thickness = 30f;
+
+                        if (Math.abs(dist - wavefront) < thickness) {
+                            float falloff = 1.0f - (Math.abs(dist - wavefront) / thickness);
+                            float wave = (float)Math.sin(phase * 2 * Math.PI) * fireAmplitude * falloff;
+
+                            offsetX += wave * Math.cos(angle);
+                            offsetY += wave * Math.sin(angle);
+                        }
+                    }
+
+                    // 🧘 Ease into the new offset — soft spring effect
+                    p.velocityX += (offsetX - p.offsetX) * 0.02f;
+                    p.velocityX *= 0.96f;
+                    p.offsetX += p.velocityX;
+
+                    p.velocityY += (offsetY - p.offsetY) * 0.02f;
+                    p.velocityY *= 0.96f;
+                    p.offsetY += p.velocityY;
+                }
+            }
         }
 
         private void spawnRandomFirework() {
@@ -153,6 +239,7 @@ public class GameCanvas extends JFrame {
             int particleCount = 500; //40 + random.nextInt(60); // 40-100 particles
 
             fireworkManager.createExplosion(x, y, randomColor, particleCount);
+            shockwaves.add(new Shockwave((float)x, (float)y));
         }
 
         @Override
@@ -173,6 +260,28 @@ public class GameCanvas extends JFrame {
 
             // Enable antialiasing for smoother particles
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // Draw grid
+            g2d.setColor(new Color(0, 100, 255)); // Blue grid
+
+            for (int row = 0; row < grid.size(); row++) {
+                List<GridPoint> line = grid.get(row);
+                for (int col = 0; col < line.size(); col++) {
+                    GridPoint p = line.get(col);
+
+                    // Horizontal
+                    if (col < line.size() - 1) {
+                        GridPoint next = line.get(col + 1);
+                        g2d.drawLine((int)p.getDrawX(), (int)p.getDrawY(), (int)next.getDrawX(), (int)next.getDrawY());
+                    }
+
+                    // Vertical
+                    if (row < grid.size() - 1) {
+                        GridPoint below = grid.get(row + 1).get(col);
+                        g2d.drawLine((int)p.getDrawX(), (int)p.getDrawY(), (int)below.getDrawX(), (int)below.getDrawY());
+                    }
+                }
+            }
 
             // Render fireworks first (behind player)
             fireworkManager.render(g2d);

@@ -31,10 +31,6 @@ public class Particle {
         velY *= damping;
         if (Math.abs(velX) < 0.01) velX = 0;
         if (Math.abs(velY) < 0.01) velY = 0;
-
-
-        System.out.printf("dx: %.2f, dy: %.2f, delta: %.4f, moveX: %.2f, moveY: %.2f\n",
-                velX, velY, delta, velX * delta, velY * delta);
     }
 
     public void render(Graphics2D g2d) {
